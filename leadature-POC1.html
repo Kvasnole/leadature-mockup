@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVE for Leadature - Revenue Control Panel</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .calendar-event {
+            font-size: 0.7rem;
+            padding: 2px 4px;
+            margin-bottom: 2px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .calendar-event:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(124, 58, 237, 0.3);
+        }
+
+        /* Eve Brand Colors */
+        :root {
+            --eve-purple: #7C3AED;
+            --eve-purple-dark: #6D28D9;
+            --eve-purple-light: #8B5CF6;
+            --eve-accent: #EC4899;
+            --eve-bg: #FAFAFA;
+        }
+
+        .eve-gradient {
+            background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%);
+        }
+
+        .eve-gradient-subtle {
+            background: linear-gradient(135deg, #F3E8FF 0%, #FCE7F3 100%);
+        }
+    </style>
+</head>
+<body style="background: #FAFAFA;">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        // Sample data
+        const sampleEvents = [
+            {
+                id: 1,
+                name: "Tech Innovation Summit 2026",
+                client: "TechCorp Inc.",
+                owner: "Hanna",
+                date: "2026-02-15",
+                daysUntil: 3,
+                healthScore: "red",
+                revenue: 85000,
+                risks: ["No confirmation received", "Client silent for 7 days", "Venue contract pending"],
+                lastContact: "7 days ago",
+                setupStatus: "Incomplete"
+            },
+            {
+                id: 2,
+                name: "Annual Leadership Retreat",
+                client: "GlobalBank Ltd.",
+                owner: "Max",
+                date: "2026-02-20",
+                daysUntil: 8,
+                healthScore: "yellow",
+                revenue: 120000,
+                risks: ["Catering confirmation due", "AV requirements unclear"],
+                lastContact: "2 days ago",
+                setupStatus: "In Progress"
+            },
+            {
+                id: 3,
+                name: "Product Launch Event",
+                client: "StartupXYZ",
+                owner: "Hanna",
+                date: "2026-02-18",
+                daysUntil: 6,
+                healthScore: "green",
+                revenue: 45000,
+                risks: [],
+                lastContact: "Today",
+                setupStatus: "Complete"
+            },
+            {
+                id: 4,
+                name: "Corporate Training Workshop",
+                client: "MegaCorp Solutions",
+                owner: "Max",
+                date: "2026-03-05",
+                daysUntil: 21,
+                healthScore: "yellow",
+                revenue: 32000,
+                risks: ["Waiting on attendee count"],
+                lastContact: "5 days ago",
+                setupStatus: "In Progress"
+            },
+            {
+                id: 5,
+                name: "Executive Board Meeting",
+                client: "FinServe Group",
+                owner: "Hanna",
+                date: "2026-02-25",
+                daysUntil: 13,
+                healthScore: "red",
+                revenue: 95000,
+                risks: ["No venue confirmation", "Missing dietary requirements", "Security clearance pending"],
+                lastContact: "10 days ago",
+                setupStatus: "Blocked"
+            },
+            {
+                id: 6,
+                name: "Team Building Day",
+                client: "HealthTech Partners",
+                owner: "Max",
+                date: "2026-03-12",
+                daysUntil: 28,
+                healthScore: "green",
+                revenue: 18000,
+                risks: [],
+                lastContact: "1 day ago",
+                setupStatus: "Complete"
+            },
+            {
+                id: 7,
+                name: "Industry Conference 2026",
+                client: "MediaGroup International",
+                date: "2026-04-08",
+                daysUntil: 55,
+                healthScore: "yellow",
+                revenue: 150000,
+                risks: ["Speaker contracts pending"],
+                lastContact: "3 days ago",
+                setupStatus: "In Progress"
+            },
+            {
+                id: 8,
+                name: "Client Appreciation Gala",
+                client: "Luxury Brands Co.",
+                owner: "Max",
+                date: "2026-03-20",
+                daysUntil: 36,
+                healthScore: "green",
+                revenue: 78000,
+                risks: [],
+                lastContact: "Today",
+                setupStatus: "Complete"
+            }
+        ];
+
+        function RevenueControlPanel() {
+            const [selectedEvent, setSelectedEvent] = useState(null);
+            const [filterHealth, setFilterHealth] = useState("all");
+            const [sortBy, setSortBy] = useState("date");
+            const [view, setView] = useState("timeline");
+            const [currentMonth, setCurrentMonth] = useState(new Date(2026, 1));
+
+            const filteredAndSortedEvents = useMemo(() => {
+                let filtered = sampleEvents;
+
+                if (filterHealth !== "all") {
+                    filtered = filtered.filter(e => e.healthScore === filterHealth);
+                }
+
+                return filtered.sort((a, b) => {
+                    if (sortBy === "date") return a.daysUntil - b.daysUntil;
+                    if (sortBy === "revenue") return b.revenue - a.revenue;
+                    if (sortBy === "risk") {
+                        const riskOrder = { red: 0, yellow: 1, green: 2 };
+                        return riskOrder[a.healthScore] - riskOrder[b.healthScore];
+                    }
+                    return 0;
+                });
+            }, [filterHealth, sortBy]);
+
+            const stats = useMemo(() => {
+                return {
+                    totalRevenue: sampleEvents.reduce((sum, e) => sum + e.revenue, 0),
+                    atRisk: sampleEvents.filter(e => e.healthScore === "red").length,
+                    needsAttention: sampleEvents.filter(e => e.healthScore === "yellow").length,
+                    onTrack: sampleEvents.filter(e => e.healthScore === "green").length,
+                    totalEvents: sampleEvents.length
+                };
+            }, []);
+
+            const todayRisks = useMemo(() => {
+                return sampleEvents
+                    .filter(e => e.healthScore === "red" && e.daysUntil <= 14)
+                    .sort((a, b) => a.daysUntil - b.daysUntil);
+            }, []);
+
+            const getHealthColor = (health) => {
+                switch(health) {
+                    case "green": return "bg-emerald-500";
+                    case "yellow": return "bg-amber-500";
+                    case "red": return "bg-rose-500";
+                    default: return "bg-gray-500";
+                }
+            };
+
+            const getHealthBorder = (health) => {
+                switch(health) {
+                    case "green": return "border-emerald-500";
+                    case "yellow": return "border-amber-500";
+                    case "red": return "border-rose-500";
+                    default: return "border-gray-500";
+                }
+            };
+
+            const getHealthBg = (health) => {
+                switch(health) {
+                    case "green": return "bg-emerald-50 border-emerald-200 text-emerald-800";
+                    case "yellow": return "bg-amber-50 border-amber-200 text-amber-800";
+                    case "red": return "bg-rose-50 border-rose-200 text-rose-800";
+                    default: return "bg-gray-50 border-gray-200 text-gray-800";
+                }
+            };
+
+            const getDaysInMonth = (date) => {
+                return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+            };
+
+            const getFirstDayOfMonth = (date) => {
+                return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+            };
+
+            const getMonthName = (date) => {
+                return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            };
+
+            const getEventsForDate = (date) => {
+                const dateStr = date.toISOString().split('T')[0];
+                return sampleEvents.filter(e => e.date === dateStr);
+            };
+
+            const changeMonth = (delta) => {
+                setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta));
+            };
+
+            const isToday = (date) => {
+                const today = new Date(2026, 1, 12);
+                return date.getDate() === today.getDate() &&
+                       date.getMonth() === today.getMonth() &&
+                       date.getFullYear() === today.getFullYear();
+            };
+
+            return (
+                <div className="min-h-screen" style={{ background: '#FAFAFA' }}>
+                    {/* Header */}
+                    <header className="bg-white border-b border-gray-200 shadow-sm">
+                        <div className="max-w-7xl mx-auto px-6 py-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                    {/* Eve Logo */}
+                                    <div className="flex items-center space-x-3">
+                                        <div className="eve-gradient w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="white" opacity="0.9"/>
+                                                <path d="M2 17L12 22L22 17" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M2 12L12 17L22 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center space-x-2">
+                                                <h1 className="text-2xl font-bold" style={{ color: '#7C3AED' }}>EVE</h1>
+                                                <span className="text-gray-400">×</span>
+                                                <span className="text-xl font-semibold text-gray-700">Leadature</span>
+                                            </div>
+                                            <p className="text-xs text-gray-500">Revenue Control Panel · POC-1</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    <div className="text-right">
+                                        <p className="text-sm text-gray-500">Welcome back,</p>
+                                        <p className="text-sm font-semibold text-gray-900">Max</p>
+                                    </div>
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center eve-gradient shadow-lg">
+                                        <span className="text-white font-semibold">M</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <div className="max-w-7xl mx-auto px-6 py-8">
+                        {/* Stats Overview */}
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+                            <div className="bg-white rounded-xl shadow-sm p-6 border border-purple-100">
+                                <p className="text-sm font-medium text-gray-600 mb-1">Total Revenue</p>
+                                <p className="text-2xl font-bold" style={{ color: '#7C3AED' }}>${(stats.totalRevenue / 1000).toFixed(0)}K</p>
+                            </div>
+                            <div className="bg-white rounded-xl shadow-sm p-6 border border-purple-100">
+                                <p className="text-sm font-medium text-gray-600 mb-1">Total Events</p>
+                                <p className="text-2xl font-bold text-gray-900">{stats.totalEvents}</p>
+                            </div>
+                            <div className="bg-rose-50 rounded-xl shadow-sm p-6 border border-rose-200">
+                                <p className="text-sm font-medium text-rose-700 mb-1">At Risk</p>
+                                <p className="text-2xl font-bold text-rose-900">{stats.atRisk}</p>
+                            </div>
+                            <div className="bg-amber-50 rounded-xl shadow-sm p-6 border border-amber-200">
+                                <p className="text-sm font-medium text-amber-700 mb-1">Needs Attention</p>
+                                <p className="text-2xl font-bold text-amber-900">{stats.needsAttention}</p>
+                            </div>
+                            <div className="bg-emerald-50 rounded-xl shadow-sm p-6 border border-emerald-200">
+                                <p className="text-sm font-medium text-emerald-700 mb-1">On Track</p>
+                                <p className="text-2xl font-bold text-emerald-900">{stats.onTrack}</p>
+                            </div>
+                        </div>
+
+                        {/* Today's Revenue Risks */}
+                        {todayRisks.length > 0 && (
+                            <div className="bg-gradient-to-r from-rose-50 to-pink-50 border-l-4 border-rose-500 rounded-xl shadow-md p-6 mb-8">
+                                <div className="flex items-start">
+                                    <div className="flex-shrink-0">
+                                        <div className="w-10 h-10 bg-rose-500 rounded-lg flex items-center justify-center">
+                                            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div className="ml-4 flex-1">
+                                        <h3 className="text-lg font-bold text-rose-900 mb-3">⚠️ Today's Revenue Risks</h3>
+                                        <div className="space-y-3">
+                                            {todayRisks.map(event => (
+                                                <div key={event.id} className="bg-white rounded-lg p-4 border border-rose-200 hover:border-rose-300 transition-colors">
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center space-x-3 mb-2">
+                                                                <h4 className="font-semibold text-gray-900">{event.name}</h4>
+                                                                <span className="px-2 py-1 bg-rose-100 text-rose-800 text-xs font-medium rounded-full">
+                                                                    {event.daysUntil} days
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-sm text-gray-600 mb-1">{event.client} · Owner: {event.owner}</p>
+                                                            <p className="text-sm font-medium text-gray-700 mb-2">${(event.revenue / 1000).toFixed(0)}K revenue</p>
+                                                            <div className="space-y-1">
+                                                                {event.risks.map((risk, idx) => (
+                                                                    <div key={idx} className="flex items-center text-sm text-rose-700">
+                                                                        <span className="mr-2">•</span>
+                                                                        <span>{risk}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setSelectedEvent(event)}
+                                                            className="ml-4 px-4 py-2 text-white text-sm font-medium rounded-lg transition-all shadow-md hover:shadow-lg"
+                                                            style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #EC4899 100%)' }}
+                                                        >
+                                                            Take Action
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* View Toggle */}
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-gray-900">Upcoming Events (Next 60 Days)</h2>
+                            <div className="flex items-center space-x-2 bg-white rounded-xl shadow-sm border border-purple-100 p-1">
+                                <button
+                                    onClick={() => setView('calendar')}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                        view === 'calendar'
+                                            ? 'text-white shadow-md'
+                                            : 'text-gray-600 hover:text-gray-900'
+                                    }`}
+                                    style={view === 'calendar' ? { background: 'linear-gradient(135deg, #7C3AED 0%, #EC4899 100%)' } : {}}
+                                >
+                                    📅 Calendar
+                                </button>
+                                <button
+                                    onClick={() => setView('timeline')}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                        view === 'timeline'
+                                            ? 'text-white shadow-md'
+                                            : 'text-gray-600 hover:text-gray-900'
+                                    }`}
+                                    style={view === 'timeline' ? { background: 'linear-gradient(135deg, #7C3AED 0%, #EC4899 100%)' } : {}}
+                                >
+                                    📋 Timeline
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Calendar View */}
+                        {view === 'calendar' && (
+                            <div className="bg-white rounded-xl shadow-sm border border-purple-100 overflow-hidden">
+                                <div className="eve-gradient-subtle border-b border-purple-100 px-6 py-4">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-xl font-bold text-gray-900">{getMonthName(currentMonth)}</h3>
+                                        <div className="flex items-center space-x-2">
+                                            <button
+                                                onClick={() => changeMonth(-1)}
+                                                className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                onClick={() => setCurrentMonth(new Date(2026, 1))}
+                                                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-white/50 rounded-lg transition-colors"
+                                            >
+                                                Today
+                                            </button>
+                                            <button
+                                                onClick={() => changeMonth(1)}
+                                                className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-4">
+                                    <div className="grid grid-cols-7 gap-2 mb-2">
+                                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                                            <div key={day} className="text-center text-sm font-semibold text-gray-600 py-2">
+                                                {day}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="grid grid-cols-7 gap-2">
+                                        {(() => {
+                                            const daysInMonth = getDaysInMonth(currentMonth);
+                                            const firstDay = getFirstDayOfMonth(currentMonth);
+                                            const days = [];
+
+                                            for (let i = 0; i < firstDay; i++) {
+                                                days.push(
+                                                    <div key={`empty-${i}`} className="bg-gray-50 rounded-lg min-h-[120px]"></div>
+                                                );
+                                            }
+
+                                            for (let day = 1; day <= daysInMonth; day++) {
+                                                const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                                                const events = getEventsForDate(date);
+                                                const today = isToday(date);
+
+                                                days.push(
+                                                    <div
+                                                        key={day}
+                                                        className={`border rounded-lg min-h-[120px] p-2 hover:shadow-md transition-shadow ${
+                                                            today ? 'eve-gradient-subtle border-purple-300 border-2' : 'bg-white border-gray-200'
+                                                        }`}
+                                                    >
+                                                        <div className={`text-sm font-semibold mb-2 ${
+                                                            today ? 'text-purple-700' : 'text-gray-700'
+                                                        }`}>
+                                                            {day}
+                                                            {today && <span className="ml-1 text-xs text-white px-1.5 py-0.5 rounded eve-gradient">Today</span>}
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            {events.map(event => (
+                                                                <div
+                                                                    key={event.id}
+                                                                    onClick={() => setSelectedEvent(event)}
+                                                                    className={`calendar-event border ${getHealthBg(event.healthScore)} truncate`}
+                                                                >
+                                                                    <div className="font-medium truncate">{event.name}</div>
+                                                                    <div className="text-xs truncate">{event.client}</div>
+                                                                    <div className="text-xs truncate">Owner: {event.owner}</div>
+                                                                    <div className="text-xs font-semibold">${(event.revenue/1000).toFixed(0)}K</div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+
+                                            return days;
+                                        })()}
+                                    </div>
+                                </div>
+
+                                <div className="eve-gradient-subtle border-t border-purple-100 px-6 py-3">
+                                    <div className="flex items-center space-x-6 text-sm">
+                                        <span className="font-semibold text-gray-700">Legend:</span>
+                                        <div className="flex items-center space-x-2">
+                                            <div className="w-4 h-4 rounded bg-rose-50 border border-rose-200"></div>
+                                            <span className="text-gray-600">At Risk</span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <div className="w-4 h-4 rounded bg-amber-50 border border-amber-200"></div>
+                                            <span className="text-gray-600">Needs Attention</span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <div className="w-4 h-4 rounded bg-emerald-50 border border-emerald-200"></div>
+                                            <span className="text-gray-600">On Track</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Timeline View */}
+                        {view === 'timeline' && (
+                            <>
+                                <div className="bg-white rounded-xl shadow-sm p-4 mb-6 border border-purple-100">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-4">
+                                            <label className="text-sm font-medium text-gray-700">Filter by Health:</label>
+                                            <select
+                                                value={filterHealth}
+                                                onChange={(e) => setFilterHealth(e.target.value)}
+                                                className="px-3 py-2 border border-purple-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                            >
+                                                <option value="all">All Events</option>
+                                                <option value="red">At Risk</option>
+                                                <option value="yellow">Needs Attention</option>
+                                                <option value="green">On Track</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center space-x-4">
+                                            <label className="text-sm font-medium text-gray-700">Sort by:</label>
+                                            <select
+                                                value={sortBy}
+                                                onChange={(e) => setSortBy(e.target.value)}
+                                                className="px-3 py-2 border border-purple-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                            >
+                                                <option value="date">Date (Soonest First)</option>
+                                                <option value="revenue">Revenue (Highest First)</option>
+                                                <option value="risk">Risk Level</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-xl shadow-sm border border-purple-100 overflow-hidden">
+                                    <div className="divide-y divide-gray-100">
+                                        {filteredAndSortedEvents.map(event => (
+                                            <div
+                                                key={event.id}
+                                                className={`p-6 hover:bg-purple-50/30 transition-colors cursor-pointer border-l-4 ${getHealthBorder(event.healthScore)}`}
+                                                onClick={() => setSelectedEvent(event)}
+                                            >
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex items-start space-x-4 flex-1">
+                                                        <div className="flex flex-col items-center pt-1">
+                                                            <div className={`w-4 h-4 rounded-full ${getHealthColor(event.healthScore)}`}></div>
+                                                            <div className="text-xs text-gray-500 mt-1 font-medium">
+                                                                {event.healthScore.toUpperCase()}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center space-x-3 mb-2">
+                                                                <h3 className="text-lg font-semibold text-gray-900">{event.name}</h3>
+                                                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                                                    event.daysUntil <= 7 ? 'bg-rose-100 text-rose-800' :
+                                                                    event.daysUntil <= 14 ? 'bg-amber-100 text-amber-800' :
+                                                                    'bg-gray-100 text-gray-800'
+                                                                }`}>
+                                                                    {event.daysUntil} days away
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="grid grid-cols-2 gap-4 mb-3">
+                                                                <div>
+                                                                    <p className="text-sm text-gray-500">Client</p>
+                                                                    <p className="text-sm font-medium text-gray-900">{event.client}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm text-gray-500">Owner</p>
+                                                                    <p className="text-sm font-medium text-gray-900">{event.owner}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm text-gray-500">Date</p>
+                                                                    <p className="text-sm font-medium text-gray-900">{event.date}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm text-gray-500">Revenue</p>
+                                                                    <p className="text-sm font-medium" style={{ color: '#7C3AED' }}>${(event.revenue / 1000).toFixed(0)}K</p>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm text-gray-500">Last Contact</p>
+                                                                    <p className="text-sm font-medium text-gray-900">{event.lastContact}</p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center space-x-4 mb-2">
+                                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                                    event.setupStatus === 'Complete' ? 'bg-emerald-100 text-emerald-800' :
+                                                                    event.setupStatus === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+                                                                    event.setupStatus === 'Incomplete' ? 'bg-amber-100 text-amber-800' :
+                                                                    'bg-rose-100 text-rose-800'
+                                                                }`}>
+                                                                    Setup: {event.setupStatus}
+                                                                </span>
+                                                            </div>
+
+                                                            {event.risks.length > 0 && (
+                                                                <div className="mt-3 space-y-1">
+                                                                    <p className="text-xs font-semibold text-gray-700 uppercase">Risks:</p>
+                                                                    {event.risks.map((risk, idx) => (
+                                                                        <div key={idx} className="flex items-start text-sm text-rose-700">
+                                                                            <span className="mr-2">⚠</span>
+                                                                            <span>{risk}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="ml-6">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedEvent(event);
+                                                            }}
+                                                            className="px-4 py-2 text-white text-sm font-medium rounded-lg transition-all shadow-md hover:shadow-lg"
+                                                            style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #EC4899 100%)' }}
+                                                        >
+                                                            View Details
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Event Detail Modal */}
+                    {selectedEvent && (
+                        <div
+                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                            onClick={() => setSelectedEvent(null)}
+                        >
+                            <div
+                                className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
+                                    <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
+                                    <button
+                                        onClick={() => setSelectedEvent(null)}
+                                        className="text-gray-400 hover:text-gray-600"
+                                    >
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <div className="p-6">
+                                    <div className={`rounded-xl p-4 mb-6 ${
+                                        selectedEvent.healthScore === 'red' ? 'bg-rose-50 border border-rose-200' :
+                                        selectedEvent.healthScore === 'yellow' ? 'bg-amber-50 border border-amber-200' :
+                                        'bg-emerald-50 border border-emerald-200'
+                                    }`}>
+                                        <div className="flex items-center space-x-3">
+                                            <div className={`w-6 h-6 rounded-full ${getHealthColor(selectedEvent.healthScore)}`}></div>
+                                            <div>
+                                                <p className="font-semibold text-gray-900">
+                                                    Health Status: <span className="uppercase">{selectedEvent.healthScore}</span>
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                    {selectedEvent.healthScore === 'red' ? 'Immediate attention required' :
+                                                     selectedEvent.healthScore === 'yellow' ? 'Monitoring needed' :
+                                                     'All systems go'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 mb-6">
+                                        <div>
+                                            <h3 className="text-2xl font-bold text-gray-900 mb-2">{selectedEvent.name}</h3>
+                                            <p className="text-lg text-gray-600">{selectedEvent.client}</p>
+                                            <p className="text-sm text-gray-500 mt-1">Owned by: {selectedEvent.owner}</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                                                <p className="text-sm text-gray-500 mb-1">Event Date</p>
+                                                <p className="text-lg font-semibold text-gray-900">{selectedEvent.date}</p>
+                                                <p className="text-sm font-medium mt-1" style={{ color: '#7C3AED' }}>{selectedEvent.daysUntil} days away</p>
+                                            </div>
+                                            <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                                                <p className="text-sm text-gray-500 mb-1">Revenue Value</p>
+                                                <p className="text-lg font-semibold" style={{ color: '#7C3AED' }}>${selectedEvent.revenue.toLocaleString()}</p>
+                                            </div>
+                                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                                <p className="text-sm text-gray-500 mb-1">Last Contact</p>
+                                                <p className="text-lg font-semibold text-gray-900">{selectedEvent.lastContact}</p>
+                                            </div>
+                                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                                <p className="text-sm text-gray-500 mb-1">Setup Status</p>
+                                                <p className="text-lg font-semibold text-gray-900">{selectedEvent.setupStatus}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {selectedEvent.risks.length > 0 && (
+                                        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 mb-6">
+                                            <h4 className="font-semibold text-rose-900 mb-3">⚠️ Active Risks</h4>
+                                            <ul className="space-y-2">
+                                                {selectedEvent.risks.map((risk, idx) => (
+                                                    <li key={idx} className="flex items-start text-sm text-rose-800">
+                                                        <span className="mr-2">•</span>
+                                                        <span>{risk}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    <div className="mb-6">
+                                        <button className="w-full px-6 py-3 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg eve-gradient">
+                                            📧 Generate Email
+                                        </button>
+                                    </div>
+
+                                    {selectedEvent.healthScore !== 'green' && (
+                                        <div className="mt-6 eve-gradient-subtle border border-purple-200 rounded-xl p-4">
+                                            <h4 className="font-semibold text-purple-900 mb-2">💡 EVE Suggests:</h4>
+                                            <ul className="space-y-2 text-sm text-gray-700">
+                                                {selectedEvent.healthScore === 'red' && (
+                                                    <>
+                                                        <li>• Send immediate follow-up email to client</li>
+                                                        <li>• Schedule urgent call to confirm event details</li>
+                                                        <li>• Review and finalize all pending contracts</li>
+                                                    </>
+                                                )}
+                                                {selectedEvent.healthScore === 'yellow' && (
+                                                    <>
+                                                        <li>• Send gentle reminder to client</li>
+                                                        <li>• Confirm outstanding requirements</li>
+                                                        <li>• Update timeline checklist</li>
+                                                    </>
+                                                )}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<RevenueControlPanel />, document.getElementById('root'));
+    </script>
+</body>
+</html>
